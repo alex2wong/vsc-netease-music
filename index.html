@@ -6,9 +6,12 @@
 	<base>
 </head>
 <body>
-	Please interact with the document first otherwise play() will failed
+<style>
+	</style>
+	Please interact with the document first otherwise play() will failed !!!!!!!!!!
 	<script>
 		const audio = new Audio()
+		const canv = null;
 		const Lyric = lrcs => {
 			const parsed = {}
 			const parse = lrc => lrc.trim().split('\n').filter(item => item).forEach(line => {
@@ -34,6 +37,8 @@
 		let song = null
 		let lyric = null
 
+		audio.crossOrigin = 'anonymous'
+		audio.contentEditable = true
 		audio.onplay = () => {
 			postMessage('event', {name: 'play'})
 		}
@@ -83,7 +88,8 @@
 			if (command === 'load') {
 				song = data.song
 				lyric = Lyric(data.lyric)
-				audio.src = song.url
+				// http://127.0.0.1:16363/prx?proxyURI=
+				audio.src = '' + song.url
 				if (data.action) audio.play()
 			}
 			else if (command === 'play') {
@@ -103,13 +109,44 @@
 				if (audio.muted) audio.muted = false
 				audio.volume + 0.2 > 1 ? audio.volume = 0 : audio.volume += 0.2
 			}
+			else if (command === 'disableEffect') {
+				if (canv && canv.style) {
+					canv.style.display = 'none'
+				}
+			}
+			else if (command === 'enableEffect') {
+				if (canv && canv.style) {
+					canv.style.display = 'block'
+				}
+			}
 		}
 
 		const ready = () => {
+			
 			document.onclick = null
 			document.ontouchend = null
 			postMessage('event', {name: 'ready'})
 			document.body.innerHTML = 'Please preserve this webview tab'
+			const canv = document.createElement('canvas')
+			canv.height = 400
+			canv.width = 400
+			canv.className = 'canv'
+			canv.style = 'position: absolute; top: 50%;left: 50%;margin-left: -250px;margin-top: -250px'
+			document.body.appendChild(canv)
+			const vudio = new Vudio(audio, canv, {
+				effect: 'circlebar',
+				accuracy: 128,
+				width: 400,
+				height: 400,
+				circlebar: {
+					circleRadius: 100,
+					fadeSide: false,
+					shadowBlur : 4,
+					shadowColor: 'rgba(244,244,244,.5)',
+					coverImg: './icon.png',
+				},
+			});
+			vudio.dance();
 		}
 
 		const prepare = () =>

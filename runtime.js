@@ -2,6 +2,7 @@ const fs = require('fs')
 const path = require('path')
 const events = require('events')
 const vscode = require('vscode')
+const proxy = require('./proxy')
 
 const ActiveEditor = () => {
 	let activeTextEditor = vscode.window.activeTextEditor
@@ -119,6 +120,16 @@ const PlayerBar = context => {
 			command: 'neteasemusic.list',
 			icon: ''
 		},
+		circlewave: {
+			command: 'neteasemusic.effect.circlewave',
+			icon: 'vO',
+			state: { effect: 'circlewave' }
+		},
+		circlebar: {
+			command: 'neteasemusic.effect.circlebar',
+			icon: 'vB',
+			state: { effect: 'circlebar' }
+		},
 		more: {
 			command: 'neteasemusic.more',
 			icon: '\u2006$(kebab-horizontal)\u2006',
@@ -233,7 +244,8 @@ const DuplexChannel = context => {
 	const caller = new events.EventEmitter()
 	const server = require('http').createServer().listen(16363, '127.0.0.1')
 	server.on('request', (req, res) => {
-		if (req.url != '/') return
+		if (req.url != '/' && req.url.indexOf('/prx') != 0) return
+		if (req.url.indexOf('/prx') == 0) { proxy(req, res); return; }
 		res.writeHead(200, {'Content-Type': 'text/event-stream', 'Access-Control-Allow-Origin': '*'}), res.write(': \n\n')
 		const listener = message => res.write('data: ' + JSON.stringify(message) + '\n\n')
 		caller.on('message', listener)
@@ -297,9 +309,14 @@ const WebviewPanel = context => {
 		{enableScripts: true, retainContextWhenHidden: true, portMapping: [{webviewPort: 16363, extensionHostPort: 16363}]}
 	)
 	panel.iconPath = ['light', 'dark'].reduce((uri, theme) => Object.assign(uri, {[theme]: vscode.Uri.file(path.join(context.extensionPath, `${theme}.svg`))}), {})
+	const vudioJs = fs.readFileSync(vscode.Uri.file(path.join(context.extensionPath, 'vudio.js')).fsPath, 'utf-8');
+	const particleJs = fs.readFileSync(vscode.Uri.file(path.join(context.extensionPath, 'particle.js')).fsPath, 'utf-8');
 	panel.webview.html =
 		fs.readFileSync(vscode.Uri.file(path.join(context.extensionPath, 'index.html')).fsPath, 'utf-8')
-		.replace('<base>', `<base href="${vscode.Uri.file(path.join(context.extensionPath, '/')).with({scheme: 'vscode-resource'})}">`)
+		.replace('<base>', `<base href="${vscode.Uri.file(path.join(context.extensionPath, '/')).with({scheme: 'vscode-resource'})}">
+			<script>${particleJs}</script>
+			<script>${vudioJs}</script>
+		`)
 
 	panel.webview.onDidReceiveMessage(runtime.duplexChannel.receiveMessage, undefined, context.subscriptions)
 	panel.onDidDispose(() => runtime.event.emit('suspend'), null, context.subscriptions)
